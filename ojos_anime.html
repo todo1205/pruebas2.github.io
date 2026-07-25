@@ -62,7 +62,7 @@
 
   <a href="index.html" class="back-btn">← Menú</a>
   <canvas id="c" width="320" height="240"></canvas>
-  <div class="hint">Expresiones Anime — Estilo Estilizado</div>
+  <div class="hint">Expresiones Anime — Según Plantilla</div>
 
   <script>
     const canvas = document.getElementById('c');
@@ -71,7 +71,7 @@
 
     const colors = { bg: '#030615', blue1: '#5fd2ff', blue2: '#2aa1ff', blue3: '#0d4b8a' };
 
-    const eyeSpacing = 50; 
+    const eyeSpacing = 55; 
     const baseRadiusX = 22; 
     const baseRadiusY = 32;
 
@@ -81,69 +81,60 @@
       radLx: baseRadiusX, radLy: baseRadiusY,
       radRx: baseRadiusX, radRy: baseRadiusY,
       rotL: 0, rotR: 0,
-      isArc: 0
+      mode: 'normal',  // 'normal', 'feliz', 'triste', 'enojado', 'pensativo', 'brillo'
+      blush: 0,         // Intensidad del sonrojo
+      starAlpha: 0      // Opacidad de la estrella interior
     };
 
-    // Lista de expresiones perfectamente estructuradas
     const expressions = [
-      {
-        name: 'Normal',
-        duration: 2200,
-        target: {
-          lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
-          radLx: baseRadiusX, radLy: baseRadiusY,
-          radRx: baseRadiusX, radRy: baseRadiusY,
-          rotL: 0, rotR: 0, isArc: 0
-        }
-      },
       {
         name: 'FELIZ',
         duration: 2500,
+        mode: 'feliz',
         target: {
-          lx: W/2 - eyeSpacing, ly: H/2 - 5, rx: W/2 + eyeSpacing, ry: H/2 - 5,
-          radLx: 28, radLy: 18,
-          radRx: 28, radRy: 18,
-          rotL: 0, rotR: 0, isArc: 1
-        }
-      },
-      {
-        name: 'Pensativo',
-        duration: 2500,
-        target: {
-          lx: W/2 - eyeSpacing + 8, ly: H/2 - 5, rx: W/2 + eyeSpacing + 8, ry: H/2 - 5,
-          radLx: 16, radLy: 10,
-          radRx: 24, radRy: 12,
-          rotL: 0, rotR: 0, isArc: 0
+          lx: W/2 - eyeSpacing, ly: H/2 - 4, rx: W/2 + eyeSpacing, ry: H/2 - 4,
+          radLx: 28, radLy: 18, radRx: 28, radRy: 18,
+          rotL: 0, rotR: 0, blush: 1, starAlpha: 0
         }
       },
       {
         name: 'TRISTE',
         duration: 2500,
+        mode: 'triste',
         target: {
           lx: W/2 - eyeSpacing, ly: H/2 + 6, rx: W/2 + eyeSpacing, ry: H/2 + 6,
-          radLx: 20, radLy: 32,
-          radRx: 20, radRy: 32,
-          rotL: -0.45, rotR: 0.45, isArc: 0
+          radLx: 22, radLy: 34, radRx: 22, radRy: 34,
+          rotL: -0.35, rotR: 0.35, blush: 0, starAlpha: 0
         }
       },
       {
         name: 'Enojado',
         duration: 2500,
+        mode: 'enojado',
         target: {
-          lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
-          radLx: 20, radLy: 32,
-          radRx: 20, radRy: 32,
-          rotL: 0.45, rotR: -0.45, isArc: 0
+          lx: W/2 - eyeSpacing, ly: H/2 + 2, rx: W/2 + eyeSpacing, ry: H/2 + 2,
+          radLx: 20, radLy: 32, radRx: 20, radRy: 32,
+          rotL: 0.45, rotR: -0.45, blush: 0, starAlpha: 0
         }
       },
       {
-        name: 'Mirando Alrededor',
-        duration: 1500,
+        name: 'Pensativo',
+        duration: 2500,
+        mode: 'pensativo',
         target: {
-          lx: W/2 - eyeSpacing - 18, ly: H/2, rx: W/2 + eyeSpacing - 18, ry: H/2,
-          radLx: baseRadiusX, radLy: baseRadiusY,
-          radRx: baseRadiusX, radRy: baseRadiusY,
-          rotL: 0, rotR: 0, isArc: 0
+          lx: W/2 - eyeSpacing + 8, ly: H/2 - 2, rx: W/2 + eyeSpacing + 8, ry: H/2 - 2,
+          radLx: 12, radLy: 18, radRx: 28, radRy: 10,
+          rotL: 0, rotR: 0, blush: 0, starAlpha: 0
+        }
+      },
+      {
+        name: 'Brillo / Emocionado',
+        duration: 2500,
+        mode: 'brillo',
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
+          radLx: 24, radLy: 35, radRx: 24, radRy: 35,
+          rotL: 0, rotR: 0, blush: 0.4, starAlpha: 1
         }
       }
     ];
@@ -155,58 +146,133 @@
       return (1 - amt) * start + amt * end;
     }
 
-    // Dibujo del ojo estilo anime (Limpio y robusto)
-    function drawAnimeEye(rx, ry) {
-      // 1. Sombra / Borde exterior (Capa oscura de la pestaña)
-      ctx.beginPath();
-      ctx.ellipse(0, 0, rx + 2, ry + 2, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#02131d';
-      ctx.fill();
+    // Dibujar estrella brillante para el modo 'Brillo'
+    function drawStar(cx, cy, spikes, outerRadius, innerRadius) {
+      let rot = Math.PI / 2 * 3;
+      let x = cx;
+      let y = cy;
+      let step = Math.PI / spikes;
 
-      // 2. Fondo del Iris (Degradado vertical)
       ctx.beginPath();
-      ctx.ellipse(0, 0, Math.max(1, rx), Math.max(1, ry), 0, 0, Math.PI * 2);
-      const grad = ctx.createLinearGradient(0, -ry, 0, ry);
-      grad.addColorStop(0, '#02323a');   // Oscuro arriba
-      grad.addColorStop(0.5, '#066d7d');  // Azul medio
-      grad.addColorStop(1, '#00e5ff');    // Cyan brillante abajo
-      ctx.fillStyle = grad;
-      ctx.fill();
+      ctx.moveTo(cx, cy - outerRadius);
+      for (let i = 0; i < spikes; i++) {
+        x = cx + Math.cos(rot) * outerRadius;
+        y = cy + Math.sin(rot) * outerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
 
-      // 3. Brillo Principal (Ovalo blanco arriba a la izquierda)
-      ctx.beginPath();
-      ctx.ellipse(-rx * 0.3, -ry * 0.35, Math.max(1, rx * 0.35), Math.max(1, ry * 0.35), 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
+        x = cx + Math.cos(rot) * innerRadius;
+        y = cy + Math.sin(rot) * innerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+      }
+      ctx.lineTo(cx, cy - outerRadius);
+      ctx.closePath();
+      ctx.fillStyle = '#ffea00';
       ctx.fill();
-
-      // 4. Brillo Secundario (Punto blanco pequeño abajo a la izquierda)
-      ctx.beginPath();
-      ctx.arc(-rx * 0.35, ry * 0.45, Math.max(1, rx * 0.12), 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
     }
 
-    function drawEye(x, y, rx, ry, rotation, arcRatio) {
+    // Dibujar la vena/muesca de enojo (💢)
+    function drawAngerSymbol(x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = '#ff3344';
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = 'round';
+
+      const s = 10;
+      ctx.beginPath();
+      // Líneas cruzadas curvas
+      ctx.moveTo(-s, -s/2); ctx.quadraticCurveTo(0, 0, -s, s/2);
+      ctx.moveTo(s, -s/2);  ctx.quadraticCurveTo(0, 0, s, s/2);
+      ctx.moveTo(-s/2, -s); ctx.quadraticCurveTo(0, 0, s/2, -s);
+      ctx.moveTo(-s/2, s);  ctx.quadraticCurveTo(0, 0, s/2, s);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Dibujar sonrojo rosa (///)
+    function drawBlush(x, y, alpha) {
+      if (alpha <= 0.05) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = '#ff4f8b';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x + i * 5 - 4, y + 4);
+        ctx.lineTo(x + i * 5 + 2, y - 4);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Renderizado del ojo individual según el modo
+    function drawEye(x, y, rx, ry, rotation, mode) {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(rotation);
 
-      if (arcRatio > 0.5) {
-        // Expresión Feliz (Arco curvo)
+      if (mode === 'feliz') {
+        // Pestañas curvas felices
         ctx.beginPath();
-        ctx.arc(0, 5, rx, Math.PI * 1.15, Math.PI * 1.85, false);
-        ctx.lineWidth = 10;
+        ctx.arc(0, 8, rx, Math.PI * 1.15, Math.PI * 1.85, false);
+        ctx.lineWidth = 9;
         ctx.strokeStyle = '#00e5ff';
         ctx.lineCap = 'round';
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.arc(0, 5, rx, Math.PI * 1.2, Math.PI * 1.8, false);
+        ctx.arc(0, 8, rx, Math.PI * 1.2, Math.PI * 1.8, false);
         ctx.lineWidth = 3;
         ctx.strokeStyle = '#ffffff';
         ctx.stroke();
       } else {
-        drawAnimeEye(rx, ry);
+        // Base del ojo / Iris
+        ctx.beginPath();
+        ctx.ellipse(0, 0, Math.max(1, rx + 2), Math.max(1, ry + 2), 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#02131d';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.ellipse(0, 0, Math.max(1, rx), Math.max(1, ry), 0, 0, Math.PI * 2);
+        const grad = ctx.createLinearGradient(0, -ry, 0, ry);
+
+        if (mode === 'triste') {
+          grad.addColorStop(0, '#3a021e');   // Tono magenta/morado triste
+          grad.addColorStop(0.6, '#8d0842');
+          grad.addColorStop(1, '#ff3385');
+        } else {
+          grad.addColorStop(0, '#02323a');   // Cyan Estándar
+          grad.addColorStop(0.5, '#066d7d');
+          grad.addColorStop(1, '#00e5ff');
+        }
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Estrella interior si está en modo brillo
+        if (current.starAlpha > 0.05) {
+          ctx.save();
+          ctx.globalAlpha = current.starAlpha;
+          drawStar(0, ry * 0.1, 4, rx * 0.5, rx * 0.2);
+          ctx.restore();
+        } else {
+          // Brillo normal
+          ctx.beginPath();
+          ctx.ellipse(-rx * 0.3, -ry * 0.3, Math.max(1, rx * 0.35), Math.max(1, ry * 0.35), 0, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(-rx * 0.35, ry * 0.45, Math.max(1, rx * 0.12), 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+        }
       }
 
       ctx.restore();
@@ -222,6 +288,7 @@
 
       const speed = 0.08;
       const target = expressions[currentExprIndex].target;
+      current.mode = expressions[currentExprIndex].mode;
 
       current.lx = lerp(current.lx, target.lx, speed);
       current.ly = lerp(current.ly, target.ly, speed);
@@ -235,16 +302,26 @@
 
       current.rotL = lerp(current.rotL, target.rotL, speed);
       current.rotR = lerp(current.rotR, target.rotR, speed);
-      current.isArc = lerp(current.isArc, target.isArc, speed);
+
+      current.blush = lerp(current.blush, target.blush, speed);
+      current.starAlpha = lerp(current.starAlpha, target.starAlpha, speed);
     }
 
     function render() {
       ctx.fillStyle = colors.bg;
       ctx.fillRect(0, 0, W, H);
 
-      // Renderizar Ojo Izquierdo y Derecho sin conflictos
-      drawEye(current.lx, current.ly, current.radLx, current.radLy, current.rotL, current.isArc);
-      drawEye(current.rx, current.ry, current.radRx, current.radRy, current.rotR, current.isArc);
+      // Dibujar Ojos
+      drawEye(current.lx, current.ly, current.radLx, current.radLy, current.rotL, current.mode);
+      drawEye(current.rx, current.ry, current.radRx, current.radRy, current.rotR, current.mode);
+
+      // Elementos extra según la plantilla
+      drawBlush(current.lx, current.ly + current.radLy + 10, current.blush);
+      drawBlush(current.rx, current.ry + current.radRy + 10, current.blush);
+
+      if (current.mode === 'enojado') {
+        drawAngerSymbol(current.rx + current.radRx + 15, current.ry - current.radRy - 5);
+      }
     }
 
     function loop(now) {
