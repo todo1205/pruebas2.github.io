@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ojos Azules Expresivos</title>
+  <style>
+    :root {
+      --bg: #030615;
+      --blue1: #5fd2ff;
+      --blue2: #2aa1ff;
+      --blue3: #0d4b8a;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: monospace;
+      color: #cfeffd;
+      overflow: hidden;
+    }
+    canvas {
+      width: min(88vw, 720px);
+      height: auto;
+      aspect-ratio: 4/3;
+      background: linear-gradient(180deg, #021022, #021018);
+      border: 3px solid rgba(45, 140, 255, .12);
+      box-shadow: 0 8px 30px rgba(10, 40, 90, .6), inset 0 0 30px rgba(10, 40, 90, .25);
+    }
+    .hint {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 13px;
+      opacity: .9;
+      color: var(--blue1);
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="c" width="320" height="240"></canvas>
+  <div class="hint">Expresiones en Bucle — Ojos Azules</div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    // Colores del tema
+    const colors = { bg: '#030615', blue1: '#5fd2ff', blue2: '#2aa1ff', blue3: '#0d4b8a' };
+
+    // Configuración base de los ojos
+    const eyeSpacing = 45; // Distancia desde el centro
+    const baseRadiusX = 14; 
+    const baseRadiusY = 22; // Ovalados por defecto
+
+    // Estado actual de interpolación (animación fluida)
+    let current = {
+      lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
+      radLx: baseRadiusX, radLy: baseRadiusY,
+      radRx: baseRadiusX, radRy: baseRadiusY,
+      rotL: 0, rotR: 0, scaleY: 1
+    };
+
+    // Definición de cada expresión
+    const expressions = [
+      {
+        name: 'Normal / Neutro',
+        duration: 2000,
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
+          radLx: baseRadiusX, radLy: baseRadiusY,
+          radRx: baseRadiusX, radRy: baseRadiusY,
+          rotL: 0, rotR: 0, scaleY: 1
+        }
+      },
+      {
+        name: 'Feliz',
+        duration: 2500,
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2 - 6, rx: W/2 + eyeSpacing, ry: H/2 - 6,
+          radLx: 18, radLy: 14,
+          radRx: 18, radRy: 14,
+          rotL: -0.1, rotR: 0.1, scaleY: 1
+        }
+      },
+      {
+        name: 'Enojado',
+        duration: 2500,
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2 + 2, rx: W/2 + eyeSpacing, ry: H/2 + 2,
+          radLx: 16, radLy: 12,
+          radRx: 16, radRy: 12,
+          rotL: 0.35, rotR: -0.35, scaleY: 1 // Inclinados hacia adentro
+        }
+      },
+      {
+        name: 'Triste',
+        duration: 2500,
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2 + 6, rx: W/2 + eyeSpacing, ry: H/2 + 6,
+          radLx: 12, radLy: 18,
+          radRx: 12, radRy: 18,
+          rotL: -0.35, rotR: 0.35, scaleY: 1 // Inclinados hacia afuera
+        }
+      },
+      {
+        name: 'Pensativo',
+        duration: 2500,
+        target: {
+          lx: W/2 - eyeSpacing + 10, ly: H/2 - 12, rx: W/2 + eyeSpacing + 10, ry: H/2 - 12,
+          radLx: 10, radLy: 20,
+          radRx: 16, radRy: 12, // Asimetría para dar toque analítico
+          rotL: 0.1, rotR: 0.2, scaleY: 1
+        }
+      },
+      {
+        name: 'Mirando Arrededor - Izquierda',
+        duration: 1200,
+        target: {
+          lx: W/2 - eyeSpacing - 22, ly: H/2, rx: W/2 + eyeSpacing - 22, ry: H/2,
+          radLx: baseRadiusX, radLy: baseRadiusY,
+          radRx: baseRadiusX, radRy: baseRadiusY,
+          rotL: 0, rotR: 0, scaleY: 1
+        }
+      },
+      {
+        name: 'Mirando Arrededor - Derecha',
+        duration: 1200,
+        target: {
+          lx: W/2 - eyeSpacing + 22, ly: H/2, rx: W/2 + eyeSpacing + 22, ry: H/2,
+          radLx: baseRadiusX, radLy: baseRadiusY,
+          radRx: baseRadiusX, radRy: baseRadiusY,
+          rotL: 0, rotR: 0, scaleY: 1
+        }
+      },
+      {
+        name: 'Mirando Arrededor - Arriba',
+        duration: 1200,
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2 - 16, rx: W/2 + eyeSpacing, ry: H/2 - 16,
+          radLx: baseRadiusX + 2, radLy: baseRadiusY - 4,
+          radRx: baseRadiusX + 2, radRy: baseRadiusY - 4,
+          rotL: 0, rotR: 0, scaleY: 1
+        }
+      }
+    ];
+
+    let currentExprIndex = 0;
+    let lastSwitchTime = performance.now();
+
+    // Función Easing / Interpolación suave (lerp)
+    function lerp(start, end, amt) {
+      return (1 - amt) * start + amt * end;
+    }
+
+    // Dibujar un ojo ovalado con resplandor neón estilo capas
+    function drawEye(x, y, rx, ry, rotation) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+
+      // Capa Exterior (Sombra / Resplandor)
+      ctx.beginPath();
+      ctx.ellipse(0, 0, Math.max(1, rx + 2), Math.max(1, ry + 2), 0, 0, Math.PI * 2);
+      ctx.fillStyle = colors.blue3;
+      ctx.fill();
+
+      // Capa Intermedia
+      ctx.beginPath();
+      ctx.ellipse(0, 0, Math.max(1, rx), Math.max(1, ry), 0, 0, Math.PI * 2);
+      ctx.fillStyle = colors.blue2;
+      ctx.fill();
+
+      // Capa Interior (Brillo Central)
+      ctx.beginPath();
+      ctx.ellipse(0, 0, Math.max(1, rx - 3), Math.max(1, ry - 3), 0, 0, Math.PI * 2);
+      ctx.fillStyle = colors.blue1;
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function update(now) {
+      const expr = expressions[currentExprIndex];
+
+      // Cambiar a la siguiente expresión cuando pasa la duración
+      if (now - lastSwitchTime > expr.duration) {
+        currentExprIndex = (currentExprIndex + 1) % expressions.length;
+        lastSwitchTime = now;
+      }
+
+      // Interpola progresivamente cada valor hacia la meta
+      const speed = 0.08;
+      const target = expressions[currentExprIndex].target;
+
+      current.lx = lerp(current.lx, target.lx, speed);
+      current.ly = lerp(current.ly, target.ly, speed);
+      current.rx = lerp(current.rx, target.rx, speed);
+      current.ry = lerp(current.ry, target.ry, speed);
+
+      current.radLx = lerp(current.radLx, target.radLx, speed);
+      current.radLy = lerp(current.radLy, target.radLy, speed);
+      current.radRx = lerp(current.radRx, target.radRx, speed);
+      current.radRy = lerp(current.radRy, target.radRy, speed);
+
+      current.rotL = lerp(current.rotL, target.rotL, speed);
+      current.rotR = lerp(current.rotR, target.rotR, speed);
+    }
+
+    function render() {
+      // Limpiar fondo
+      ctx.fillStyle = colors.bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Dibujar Ojo Izquierdo y Derecho
+      drawEye(current.lx, current.ly, current.radLx, current.radLy, current.rotL);
+      drawEye(current.rx, current.ry, current.radRx, current.radRy, current.rotR);
+    }
+
+    function loop(now) {
+      update(now);
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
