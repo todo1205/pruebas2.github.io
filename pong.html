@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pong Pixel Azul</title>
+  <style>
+    :root{
+      --bg:#050a18;
+      --blue:#42b7ff;
+      --blue2:#1c77ff;
+      --blue3:#0b2e6b;
+      --text:#bfe9ff;
+    }
+    html,body{
+      margin:0;
+      height:100%;
+      background: radial-gradient(circle at center, #0b1530 0%, var(--bg) 60%, #02040b 100%);
+      font-family: monospace;
+      overflow:hidden;
+      color:var(--text);
+    }
+    .wrap{
+      height:100%;
+      display:grid;
+      place-items:center;
+    }
+    canvas{
+      width:min(92vw, 900px);
+      height:auto;
+      aspect-ratio: 4 / 3;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border:4px solid var(--blue);
+      box-shadow:
+        0 0 0 4px rgba(66,183,255,.15),
+        0 0 28px rgba(66,183,255,.35),
+        inset 0 0 24px rgba(66,183,255,.12);
+      background:
+        linear-gradient(180deg, rgba(7,18,40,.95), rgba(3,8,20,.98));
+    }
+    .hint{
+      position:fixed;
+      left:50%;
+      bottom:16px;
+      transform:translateX(-50%);
+      font-size:14px;
+      letter-spacing:.5px;
+      opacity:.85;
+      text-align:center;
+      text-shadow:0 0 8px rgba(66,183,255,.35);
+      user-select:none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <canvas id="game" width="320" height="240"></canvas>
+  </div>
+  <div class="hint">W/S o ↑/↓ para mover · Demo infinita: nadie pierde</div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const W = canvas.width;
+    const H = canvas.height;
+
+    const colors = {
+      bg: '#050a18',
+      blue: '#42b7ff',
+      blue2: '#1c77ff',
+      blue3: '#0b2e6b',
+      text: '#bfe9ff'
+    };
+
+    const paddle = {
+      w: 8,
+      h: 34,
+      speed: 170,
+      left: { x: 14, y: H / 2 - 17 },
+      right: { x: W - 22, y: H / 2 - 17 }
+    };
+
+    const ball = {
+      x: W / 2,
+      y: H / 2,
+      s: 5,
+      vx: 105,
+      vy: 72
+    };
+
+    const keys = new Set();
+    let scoreL = 0;
+    let scoreR = 0;
+    let t = 0;
+
+    function resetBall(dir = 1) {
+      ball.x = W / 2;
+      ball.y = H / 2;
+      ball.vx = 105 * dir;
+      ball.vy = (Math.random() > 0.5 ? 1 : -1) * (60 + Math.random() * 40);
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function drawPixelRect(x, y, w, h, fill) {
+      ctx.fillStyle = fill;
+      ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+    }
+
+    function drawPaddle(x, y) {
+      drawPixelRect(x, y, paddle.w, paddle.h, colors.blue);
+      drawPixelRect(x + 1, y + 1, paddle.w - 2, paddle.h - 2, colors.blue2);
+      drawPixelRect(x + 2, y + 2, paddle.w - 4, paddle.h - 4, colors.blue3);
+      drawPixelRect(x + 3, y + 3, paddle.w - 6, paddle.h - 6, colors.blue);
+    }
+
+    function drawBall() {
+      const x = Math.round(ball.x);
+      const y = Math.round(ball.y);
+      ctx.fillStyle = colors.blue;
+      ctx.fillRect(x, y, ball.s, ball.s);
+      ctx.fillStyle = colors.blue2;
+      ctx.fillRect(x + 1, y + 1, ball.s - 2, ball.s - 2);
+      ctx.fillStyle = colors.text;
+      ctx.fillRect(x + 2, y + 2, 1, 1);
+    }
+
+    function drawNet() {
+      ctx.fillStyle = 'rgba(66,183,255,0.28)';
+      for (let i = 0; i < H; i += 10) {
+        ctx.fillRect(W / 2 - 1, i, 2, 5);
+      }
+    }
+
+    function drawScanlines() {
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      for (let y = 0; y < H; y += 2) {
+        ctx.fillRect(0, y, W, 1);
+      }
+    }
+
+    function drawStars() {
+      ctx.fillStyle = 'rgba(66,183,255,0.12)';
+      for (let i = 0; i < 16; i++) {
+        const sx = (i * 37 + (t * 8)) % W;
+        const sy = (i * 53) % H;
+        ctx.fillRect(sx, sy, 1, 1);
+      }
+    }
+
+    function drawScore() {
+      ctx.fillStyle = colors.text;
+      ctx.font = '16px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${scoreL}  :  ${scoreR}`, W / 2, 22);
+    }
+
+    function updatePaddles(dt) {
+      let ly = paddle.left.y;
+      let ry = paddle.right.y;
+
+      if (keys.has('w') || keys.has('ArrowUp')) ly -= paddle.speed * dt;
+      if (keys.has('s') || keys.has('ArrowDown')) ly += paddle.speed * dt;
+
+      const aiTarget = ball.y - paddle.right.h / 2;
+      const aiDiff = aiTarget - ry;
+      ry += clamp(aiDiff, -130 * dt, 130 * dt);
+
+      paddle.left.y = clamp(ly, 10, H - paddle.left.h - 10);
+      paddle.right.y = clamp(ry, 10, H - paddle.right.h - 10);
+    }
+
+    function collidePaddle(p) {
+      return (
+        ball.x < p.x + paddle.w &&
+        ball.x + ball.s > p.x &&
+        ball.y < p.y + paddle.h &&
+        ball.y + ball.s > p.y
+      );
+    }
+
+    function updateBall(dt) {
+      ball.x += ball.vx * dt;
+      ball.y += ball.vy * dt;
+
+      if (ball.y <= 0) {
+        ball.y = 0;
+        ball.vy *= -1;
+      }
+      if (ball.y + ball.s >= H) {
+        ball.y = H - ball.s;
+        ball.vy *= -1;
+      }
+
+      if (collidePaddle(paddle.left) && ball.vx < 0) {
+        ball.x = paddle.left.x + paddle.w;
+        ball.vx *= -1.03;
+        const hit = ((ball.y + ball.s / 2) - (paddle.left.y + paddle.h / 2)) / (paddle.left.h / 2);
+        ball.vy += hit * 45;
+      }
+
+      if (collidePaddle(paddle.right) && ball.vx > 0) {
+        ball.x = paddle.right.x - ball.s;
+        ball.vx *= -1.03;
+        const hit = ((ball.y + ball.s / 2) - (paddle.right.y + paddle.h / 2)) / (paddle.right.h / 2);
+        ball.vy += hit * 45;
+      }
+
+      if (ball.x + ball.s < 0) {
+        scoreR++;
+        resetBall(1);
+      }
+
+      if (ball.x > W) {
+        scoreL++;
+        resetBall(-1);
+      }
+
+      ball.vy = clamp(ball.vy, -160, 160);
+      ball.vx = clamp(ball.vx, -190, 190);
+    }
+
+    function drawBackground() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = colors.bg;
+      ctx.fillRect(0, 0, W, H);
+      drawStars();
+      drawNet();
+      drawScanlines();
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.02, (now - last) / 1000);
+      last = now;
+      t += dt;
+
+      updatePaddles(dt);
+      updateBall(dt);
+
+      drawBackground();
+      drawPaddle(paddle.left.x, paddle.left.y);
+      drawPaddle(paddle.right.x, paddle.right.y);
+      drawBall();
+      drawScore();
+
+      requestAnimationFrame(loop);
+    }
+
+    addEventListener('keydown', e => keys.add(e.key));
+    addEventListener('keyup', e => keys.delete(e.key));
+
+    resetBall(1);
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
