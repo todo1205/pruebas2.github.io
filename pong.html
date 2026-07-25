@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pong Azul — Demo IA vs IA</title>
+  <style>
+    :root{
+      --bg:#030615;
+      --blue1:#5fd2ff;
+      --blue2:#2aa1ff;
+      --blue3:#0d4b8a;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:monospace;color:#cfeffd}
+    canvas{
+      width:min(88vw,720px);
+      height:auto;
+      aspect-ratio:4/3;
+      background:linear-gradient(180deg,#021022,#021018);
+      border:3px solid rgba(45,140,255,.12);
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      box-shadow:0 8px 30px rgba(10,40,90,.6),inset 0 0 30px rgba(10,40,90,.25);
+    }
+    .hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);font-size:13px;opacity:.9;color:var(--blue1)}
+  </style>
+</head>
+<body>
+  <canvas id="c" width="320" height="240"></canvas>
+  <div class="hint">Demo IA vs IA — nadie pierde · Solo palos y pelota</div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    const W = canvas.width, H = canvas.height;
+    const colors = { bg:'#030615', blue1:'#5fd2ff', blue2:'#2aa1ff', blue3:'#0d4b8a' };
+
+    // Paleta (pixel-art)
+    const P = {
+      w: 8, h: 36, speed: 140,
+      left: { x: 12, y: H/2 - 18 },
+      right:{ x: W - 12 - 8, y: H/2 - 18 }
+    };
+
+    // Pelota
+    const ball = { x: W/2, y: H/2, s:5, vx:120*(Math.random()>0.5?1:-1), vy: (Math.random()*80-40) };
+
+    // IA parameters
+    const AI = {
+      reaction: 0.02,
+      maxSpeed: 160,
+      lead: 0.0
+    };
+
+    // Funciones auxiliares
+    function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+    function rect(x,y,w,h,fill){ ctx.fillStyle=fill; ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
+
+    // Dibujar paleta
+    function drawPaddle(p){
+      rect(p.x, p.y, P.w, P.h, colors.blue3);
+      rect(p.x+1, p.y+1, P.w-2, P.h-2, colors.blue2);
+      rect(p.x+2, p.y+2, P.w-4, P.h-4, colors.blue1);
+    }
+
+    function drawBall(){
+      const x = Math.round(ball.x), y = Math.round(ball.y);
+      rect(x, y, ball.s, ball.s, colors.blue2);
+      rect(x+1, y+1, ball.s-2, ball.s-2, colors.blue1);
+    }
+
+    function draw() {
+      ctx.fillStyle = colors.bg;
+      ctx.fillRect(0,0,W,H);
+
+      drawPaddle(P.left);
+      drawPaddle(P.right);
+      drawBall();
+    }
+
+    function paddleCenter(p){ return p.y + P.h/2; }
+
+    function predictImpactX(ballX, ballY, vx, vy, targetX){
+      let x = ballX, y = ballY, dx = vx, dy = vy;
+      const dt = 1/240;
+      const maxSteps = 10000;
+      let steps = 0;
+      const dir = Math.sign(targetX - x) || 1;
+      while ((dir>0 && x < targetX) || (dir<0 && x > targetX)) {
+        x += dx * dt;
+        y += dy * dt;
+        if (y <= 0){ y = -y; dy = -dy; }
+        if (y >= H - ball.s){ y = 2*(H - ball.s) - y; dy = -dy; }
+        steps++; if (steps > maxSteps) break;
+      }
+      return y;
+    }
+
+    function updateAI(dt){
+      const targetYLeft = predictImpactX(ball.x, ball.y, ball.vx, ball.vy, P.left.x + P.w);
+      const targetYRight = predictImpactX(ball.x, ball.y, ball.vx, ball.vy, P.right.x);
+
+      const desiredL = targetYLeft - (P.h - ball.s)/2 + AI.lead * ball.vy * 0.02;
+      const desiredR = targetYRight - (P.h - ball.s)/2 + AI.lead * ball.vy * 0.02;
+
+      const dyL = clamp(desiredL - P.left.y, -AI.maxSpeed * dt, AI.maxSpeed * dt);
+      const dyR = clamp(desiredR - P.right.y, -AI.maxSpeed * dt, AI.maxSpeed * dt);
+
+      P.left.y  = clamp(P.left.y  + dyL, 0, H - P.h);
+      P.right.y = clamp(P.right.y + dyR, 0, H - P.h);
+    }
+
+    function rectIntersect(ax,ay,aw,ah,bx,by,bw,bh){
+      return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+    }
+
+    function updateBall(dt){
+      ball.x += ball.vx * dt;
+      ball.y += ball.vy * dt;
+
+      if (ball.y <= 0){ ball.y = 0; ball.vy *= -1; }
+      if (ball.y + ball.s >= H){ ball.y = H - ball.s; ball.vy *= -1; }
+
+      if (rectIntersect(ball.x,ball.y,ball.s,ball.s, P.left.x, P.left.y, P.w, P.h) && ball.vx < 0){
+        ball.x = P.left.x + P.w;
+        ball.vx = -ball.vx * 1.01;
+        const hit = ((ball.y + ball.s/2) - (P.left.y + P.h/2)) / (P.h/2);
+        ball.vy += hit * 90;
+      }
+      if (rectIntersect(ball.x,ball.y,ball.s,ball.s, P.right.x, P.right.y, P.w, P.h) && ball.vx > 0){
+        ball.x = P.right.x - ball.s;
+        ball.vx = -ball.vx * 1.01;
+        const hit = ((ball.y + ball.s/2) - (P.right.y + P.h/2)) / (P.h/2);
+        ball.vy += hit * 90;
+      }
+
+      if (ball.x + ball.s < 0 || ball.x > W){
+        const dir = (Math.random() > 0.5) ? 1 : -1;
+        ball.x = W/2; ball.y = H/2;
+        const speed = 110 + Math.random()*40;
+        const angle = (Math.random()*0.8 - 0.4);
+        ball.vx = speed * dir;
+        ball.vy = speed * angle;
+      }
+
+      ball.vx = clamp(ball.vx, -420, 420);
+      ball.vy = clamp(ball.vy, -360, 360);
+    }
+
+    let last = performance.now();
+    function loop(now){
+      const dt = Math.min(0.025, (now - last)/1000);
+      last = now;
+
+      updateAI(dt);
+      updateBall(dt);
+      draw();
+
+      requestAnimationFrame(loop);
+    }
+
+    P.left.y = H/2 - P.h/2;
+    P.right.y = H/2 - P.h/2;
+    ball.x = W/2; ball.y = H/2;
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
