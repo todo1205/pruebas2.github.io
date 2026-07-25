@@ -88,7 +88,7 @@
     const expressions = [
       {
         name: 'Normal',
-        duration: 2000,
+        duration: 2200,
         target: {
           lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
           radLx: baseRadiusX, radLy: baseRadiusY,
@@ -101,8 +101,8 @@
         duration: 2500,
         target: {
           lx: W/2 - eyeSpacing, ly: H/2 - 5, rx: W/2 + eyeSpacing, ry: H/2 - 5,
-          radLx: 22, radLy: 16,
-          radRx: 22, radRy: 16,
+          radLx: 30, radLy: 20,
+          radRx: 30, radRy: 20,
           rotL: 0, rotR: 0, isArc: 1
         }
       },
@@ -111,8 +111,8 @@
         duration: 2500,
         target: {
           lx: W/2 - eyeSpacing + 8, ly: H/2 - 5, rx: W/2 + eyeSpacing + 8, ry: H/2 - 5,
-          radLx: 10, radLy: 5,   // Ojo izquierdo más pequeño / entreabierto
-          radRx: 16, radLy: 6,   // Ojo derecho achatado
+          radLx: 16, radLy: 10,
+          radRx: 26, radRy: 12, // 👈 ¡Corregido a radRy!
           rotL: 0, rotR: 0, isArc: 0
         }
       },
@@ -120,10 +120,10 @@
         name: 'TRISTE',
         duration: 2500,
         target: {
-          lx: W/2 - eyeSpacing, ly: H/2 + 5, rx: W/2 + eyeSpacing, ry: H/2 + 5,
-          radLx: 14, radLy: 24,
-          radRx: 14, radRy: 24,
-          rotL: -0.55, rotR: 0.55, isArc: 0 // Inclinación hacia afuera (/ \)
+          lx: W/2 - eyeSpacing, ly: H/2 + 6, rx: W/2 + eyeSpacing, ry: H/2 + 6,
+          radLx: 22, radLy: 34,
+          radRx: 22, radRy: 34,
+          rotL: -0.45, rotR: 0.45, isArc: 0
         }
       },
       {
@@ -131,23 +131,23 @@
         duration: 2500,
         target: {
           lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
-          radLx: 15, radLy: 26,
-          radRx: 15, radRy: 26,
-          rotL: 0.55, rotR: -0.55, isArc: 0 // Inclinación hacia adentro (\ /)
+          radLx: 22, radLy: 34,
+          radRx: 22, radRy: 34,
+          rotL: 0.45, rotR: -0.45, isArc: 0
         }
       },
       {
         name: 'Mirando Alrededor',
         duration: 1500,
         target: {
-          lx: W/2 - eyeSpacing - 18, ly: H/2, rx: W/2 + eyeSpacing - 18, ry: H/2,
+          lx: W/2 - eyeSpacing - 20, ly: H/2, rx: W/2 + eyeSpacing - 20, ry: H/2,
           radLx: baseRadiusX, radLy: baseRadiusY,
           radRx: baseRadiusX, radRy: baseRadiusY,
           rotL: 0, rotR: 0, isArc: 0
         }
       }
     ];
-
+    
     let currentExprIndex = 0;
     let lastSwitchTime = performance.now();
 
