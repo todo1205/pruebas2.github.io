@@ -26,7 +26,7 @@
   </style>
 </head>
 <body>
-  anvas id="c" width="320" height="240"></canvas>
+  <canvas id="c" width="320" height="240"></canvas>
   <div class="hint">Demo IA vs IA — nadie pierde · Solo palos y pelota</div>
 
   <script>
@@ -46,21 +46,19 @@
     // Pelota
     const ball = { x: W/2, y: H/2, s:5, vx:120*(Math.random()>0.5?1:-1), vy: (Math.random()*80-40) };
 
-    // IA parameters (ambas iguales; hacen que no fallen)
+    // IA parameters
     const AI = {
-      reaction: 0.02,    // tiempo de reacción mínimo
-      maxSpeed: 160,     // velocidad máxima con la que se mueven las paletas
-      lead: 0.0          // adelantamiento (0 = siguen exactamente)
+      reaction: 0.02,
+      maxSpeed: 160,
+      lead: 0.0
     };
 
-    // Quitar marcador: no hay scores ni interfaz
     // Funciones auxiliares
     function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
     function rect(x,y,w,h,fill){ ctx.fillStyle=fill; ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
 
-    // Dibujar paleta en estilo pixel-art monocromático azul
+    // Dibujar paleta
     function drawPaddle(p){
-      // varias capas para look "pixel"
       rect(p.x, p.y, P.w, P.h, colors.blue3);
       rect(p.x+1, p.y+1, P.w-2, P.h-2, colors.blue2);
       rect(p.x+2, p.y+2, P.w-4, P.h-4, colors.blue1);
@@ -73,12 +71,9 @@
     }
 
     function draw() {
-      // fondo limpio (solo color, sin elementos extra)
       ctx.fillStyle = colors.bg;
       ctx.fillRect(0,0,W,H);
 
-      // opcional: un sutil centro (no marcador)
-      // dibujar paletas y bola
       drawPaddle(P.left);
       drawPaddle(P.right);
       drawBall();
@@ -86,11 +81,9 @@
 
     function paddleCenter(p){ return p.y + P.h/2; }
 
-    // Predecir posición de impacto simple (rebotes verticales considerados)
     function predictImpactX(ballX, ballY, vx, vy, targetX){
-      // Simula trayectoria hasta x = targetX y devuelve y estimada
       let x = ballX, y = ballY, dx = vx, dy = vy;
-      const dt = 1/240; // paso pequeño para estabilidad
+      const dt = 1/240;
       const maxSteps = 10000;
       let steps = 0;
       const dir = Math.sign(targetX - x) || 1;
@@ -104,18 +97,13 @@
       return y;
     }
 
-    // IA que nunca falla: hace predicción exacta (sin error) y se mueve a interceptarla,
-    // limitando su velocidad para mantener animación natural.
     function updateAI(dt){
-      // Left AI targets when ball is moving left or always (we want both active)
       const targetYLeft = predictImpactX(ball.x, ball.y, ball.vx, ball.vy, P.left.x + P.w);
       const targetYRight = predictImpactX(ball.x, ball.y, ball.vx, ball.vy, P.right.x);
 
-      // centrar en el punto de impacto (centrar en la mitad de la paleta)
       const desiredL = targetYLeft - (P.h - ball.s)/2 + AI.lead * ball.vy * 0.02;
       const desiredR = targetYRight - (P.h - ball.s)/2 + AI.lead * ball.vy * 0.02;
 
-      // mover con velocidad limitada
       const dyL = clamp(desiredL - P.left.y, -AI.maxSpeed * dt, AI.maxSpeed * dt);
       const dyR = clamp(desiredR - P.right.y, -AI.maxSpeed * dt, AI.maxSpeed * dt);
 
@@ -127,20 +115,16 @@
       return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
     }
 
-    // Actualización física de la pelota
     function updateBall(dt){
       ball.x += ball.vx * dt;
       ball.y += ball.vy * dt;
 
-      // top/bottom collisions
       if (ball.y <= 0){ ball.y = 0; ball.vy *= -1; }
       if (ball.y + ball.s >= H){ ball.y = H - ball.s; ball.vy *= -1; }
 
-      // colisión con paletas
       if (rectIntersect(ball.x,ball.y,ball.s,ball.s, P.left.x, P.left.y, P.w, P.h) && ball.vx < 0){
         ball.x = P.left.x + P.w;
-        ball.vx = -ball.vx * 1.01; // ligera aceleración para dinamismo
-        // ajustar vy según punto de impacto
+        ball.vx = -ball.vx * 1.01;
         const hit = ((ball.y + ball.s/2) - (P.left.y + P.h/2)) / (P.h/2);
         ball.vy += hit * 90;
       }
@@ -151,44 +135,35 @@
         ball.vy += hit * 90;
       }
 
-      // Si la pelota se sale por un lado, re-aparecer en el centro con velocidad apuntando al lado contrario.
       if (ball.x + ball.s < 0 || ball.x > W){
-        // respawn central y dirigir hacia el centro dinámicamente para que continúe
         const dir = (Math.random() > 0.5) ? 1 : -1;
         ball.x = W/2; ball.y = H/2;
         const speed = 110 + Math.random()*40;
-        const angle = (Math.random()*0.8 - 0.4); // ángulo pequeño
+        const angle = (Math.random()*0.8 - 0.4);
         ball.vx = speed * dir;
         ball.vy = speed * angle;
       }
 
-      // limitar velocidades para estabilidad
       ball.vx = clamp(ball.vx, -420, 420);
       ball.vy = clamp(ball.vy, -360, 360);
     }
 
-    // Loop principal
     let last = performance.now();
     function loop(now){
       const dt = Math.min(0.025, (now - last)/1000);
       last = now;
 
-      // actualizar IA y física
       updateAI(dt);
       updateBall(dt);
-
-      // dibujar
       draw();
 
       requestAnimationFrame(loop);
     }
 
-    // Inicialización: centrar paletas y pelota
     P.left.y = H/2 - P.h/2;
     P.right.y = H/2 - P.h/2;
     ball.x = W/2; ball.y = H/2;
 
-    // arranque
     requestAnimationFrame(loop);
   </script>
 </body>
