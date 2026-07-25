@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ojos Anime Expresivos</title>
+  <style>
+    :root {
+      --bg: #030615;
+      --blue1: #5fd2ff;
+      --blue2: #2aa1ff;
+      --blue3: #0d4b8a;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: monospace;
+      color: #cfeffd;
+      overflow: hidden;
+    }
+    canvas {
+      width: min(88vw, 720px);
+      height: auto;
+      aspect-ratio: 4/3;
+      background: linear-gradient(180deg, #021022, #021018);
+      border: 3px solid rgba(45, 140, 255, .12);
+      box-shadow: 0 8px 30px rgba(10, 40, 90, .6), inset 0 0 30px rgba(10, 40, 90, .25);
+    }
+    .hint {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 13px;
+      opacity: .9;
+      color: var(--blue1);
+    }
+    .back-btn {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      color: var(--blue1);
+      text-decoration: none;
+      background: rgba(2, 16, 34, 0.8);
+      border: 1px solid var(--blue3);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .back-btn:hover {
+      background: var(--blue3);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="index.html" class="back-btn">← Menú</a>
+  <canvas id="c" width="320" height="240"></canvas>
+  <div class="hint">Expresiones Anime — Basado en tu Diseño</div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    const colors = { bg: '#030615', blue1: '#5fd2ff', blue2: '#2aa1ff', blue3: '#0d4b8a' };
+
+    const eyeSpacing = 55; 
+    const baseRadiusX = 24; 
+    const baseRadiusY = 32;
+
+    // Estado animado actual
+    let current = {
+      lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
+      radLx: baseRadiusX, radLy: baseRadiusY,
+      radRx: baseRadiusX, radRy: baseRadiusY,
+      rotL: 0, rotR: 0,
+      isArc: 0 // Interpolación de 0 (ojo anime) a 1 (arco feliz)
+    };
+
+    // Mismas expresiones adaptadas al nuevo formato
+    const expressions = [
+      {
+        name: 'Normal',
+        duration: 2200,
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
+          radLx: baseRadiusX, radLy: baseRadiusY,
+          radRx: baseRadiusX, radRy: baseRadiusY,
+          rotL: 0, rotR: 0, isArc: 0
+        }
+      },
+      {
+        name: 'FELIZ',
+        duration: 2500,
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2 - 5, rx: W/2 + eyeSpacing, ry: H/2 - 5,
+          radLx: 30, radLy: 20,
+          radRx: 30, radRy: 20,
+          rotL: 0, rotR: 0, isArc: 1
+        }
+      },
+      {
+        name: 'Pensativo',
+        duration: 2500,
+        target: {
+          lx: W/2 - eyeSpacing + 8, ly: H/2 - 5, rx: W/2 + eyeSpacing + 8, ry: H/2 - 5,
+          radLx: 16, radLy: 10,  // Ojo entreabierto pequeño
+          radRx: 26, radLy: 12,  // Ojo achatado
+          rotL: 0, rotR: 0, isArc: 0
+        }
+      },
+      {
+        name: 'TRISTE',
+        duration: 2500,
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2 + 6, rx: W/2 + eyeSpacing, ry: H/2 + 6,
+          radLx: 22, radLy: 34,
+          radRx: 22, radRy: 34,
+          rotL: -0.45, rotR: 0.45, isArc: 0 // Inclinación hacia afuera
+        }
+      },
+      {
+        name: 'Enojado',
+        duration: 2500,
+        target: {
+          lx: W/2 - eyeSpacing, ly: H/2, rx: W/2 + eyeSpacing, ry: H/2,
+          radLx: 22, radLy: 34,
+          radRx: 22, radRy: 34,
+          rotL: 0.45, rotR: -0.45, isArc: 0 // Inclinación hacia adentro
+        }
+      },
+      {
+        name: 'Mirando Alrededor',
+        duration: 1500,
+        target: {
+          lx: W/2 - eyeSpacing - 20, ly: H/2, rx: W/2 + eyeSpacing - 20, ry: H/2,
+          radLx: baseRadiusX, radLy: baseRadiusY,
+          radRx: baseRadiusX, radRy: baseRadiusY,
+          rotL: 0, rotR: 0, isArc: 0
+        }
+      }
+    ];
+
+    let currentExprIndex = 0;
+    let lastSwitchTime = performance.now();
+
+    function lerp(start, end, amt) {
+      return (1 - amt) * start + amt * end;
+    }
+
+    // Dibujar el ojo al estilo del gráfico
+    function drawAnimeEye(rx, ry, isLeft) {
+      const sideMult = isLeft ? -1 : 1; // Para invertir detalles según sea ojo izquierdo o derecho
+
+      // 1. Sombra posterior / Pestaña superior (Negro/Azul muy oscuro)
+      ctx.beginPath();
+      ctx.ellipse(0, -ry * 0.1, rx * 1.15, ry * 1.1, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#02131d';
+      ctx.fill();
+
+      // 2. Base del Iris (Degradado vertical)
+      ctx.beginPath();
+      ctx.ellipse(0, 0, Math.max(1, rx), Math.max(1, ry), 0, 0, Math.PI * 2);
+      
+      const grad = ctx.createLinearGradient(0, -ry, 0, ry);
+      grad.addColorStop(0, '#04373d');   // Azul verdoso oscuro arriba
+      grad.addColorStop(0.6, '#086370');  // Medio
+      grad.addColorStop(1, '#00e5ff');    // Cyan neón brillante abajo
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Borde suave
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#021b24';
+      ctx.stroke();
+
+      // 3. Luna creciente blanca (destello exterior lateral)
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(sideMult * (rx * 0.4), 0, rx * 0.45, ry * 0.85, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+
+      // Recorte interior para crear el efecto de luna / arco
+      ctx.beginPath();
+      ctx.ellipse(sideMult * (rx * 0.25), 0, rx * 0.4, ry * 0.8, 0, 0, Math.PI * 2);
+      ctx.fillStyle = grad; // Oculta el centro con la base
+      ctx.fill();
+      ctx.restore();
+
+      // 4. Brillo Principal (Círculo blanco grande arriba/izquierda)
+      ctx.beginPath();
+      ctx.ellipse(-rx * 0.35, -ry * 0.35, rx * 0.38, ry * 0.38, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+
+      // 5. Brillo Secundario (Punto blanco pequeño abajo/izquierda)
+      ctx.beginPath();
+      ctx.arc(-rx * 0.45, ry * 0.45, Math.max(1, rx * 0.12), 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+    }
+
+    function drawEye(x, y, rx, ry, rotation, arcRatio, isLeft) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+
+      if (arcRatio > 0.5) {
+        // Arco para la expresión 'FELIZ'
+        ctx.beginPath();
+        ctx.arc(0, 8, rx, Math.PI * 1.15, Math.PI * 1.85, false);
+        ctx.lineWidth = 12;
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 8, rx, Math.PI * 1.2, Math.PI * 1.8, false);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+      } else {
+        drawAnimeEye(rx, ry, isLeft);
+      }
+
+      ctx.restore();
+    }
+
+    function update(now) {
+      const expr = expressions[currentExprIndex];
+
+      if (now - lastSwitchTime > expr.duration) {
+        currentExprIndex = (currentExprIndex + 1) % expressions.length;
+        lastSwitchTime = now;
+      }
+
+      const speed = 0.08;
+      const target = expressions[currentExprIndex].target;
+
+      current.lx = lerp(current.lx, target.lx, speed);
+      current.ly = lerp(current.ly, target.ly, speed);
+      current.rx = lerp(current.rx, target.rx, speed);
+      current.ry = lerp(current.ry, target.ry, speed);
+
+      current.radLx = lerp(current.radLx, target.radLx, speed);
+      current.radLy = lerp(current.radLy, target.radLy, speed);
+      current.radRx = lerp(current.radRx, target.radRx, speed);
+      current.radRy = lerp(current.radRy, target.radRy, speed);
+
+      current.rotL = lerp(current.rotL, target.rotL, speed);
+      current.rotR = lerp(current.rotR, target.rotR, speed);
+      current.isArc = lerp(current.isArc, target.isArc, speed);
+    }
+
+    function render() {
+      ctx.fillStyle = colors.bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Ojo izquierdo (isLeft = true)
+      drawEye(current.lx, current.ly, current.radLx, current.radLy, current.rotL, current.isArc, true);
+      // Ojo derecho (isLeft = false)
+      drawEye(current.rx, current.ry, current.radRx, current.radRy, current.rotR, current.isArc, false);
+    }
+
+    function loop(now) {
+      update(now);
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
